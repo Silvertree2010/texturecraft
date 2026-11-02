@@ -451,6 +451,14 @@ fn stl_shared_reader_keeps_flat_normals_and_surfaces_shared_repairs_and_colors()
     assert!(imported.report.warnings.iter().any(|w| w.contains("counts no facets")));
 }
 
+#[test]
+fn stl_binary_solid_header_with_trailing_bytes() {
+    let mut b = stl_binary();
+    b[..5].copy_from_slice(b"solid");
+    b.extend([0u8; 4]);
+    assert_eq!(import_mesh_bytes("d.stl", &b).unwrap().mesh.triangle_count(), 2);
+}
+
 /// Every prefix and some corruptions of a valid file: errors, never panics (and never an
 /// error from the panic guard, which would mean a parser panicked).
 pub(crate) fn hammer(name: &str, good: &[u8]) {
