@@ -31,9 +31,18 @@ fn read_inner(bytes: &[u8]) -> Result<RawMesh> {
     let library: String = names.iter().map(|name| format!("newmtl {name}\n")).collect();
     let prefix = "mtllib texturecraft-usemtl.mtl\n";
 
-    // Feed the prefix and the borrowed (or lossily converted) body as one reader: neither a
-    // whole-file copy nor an extra string is needed before tobj parses it.
-    let mut source = BufReader::new(prefix.as_bytes().chain(text.as_bytes()));
+    // A bare `usemtl` has no library entry, and tobj would reject the unknown name: drop the line.
+    // The body is only copied when such a line exists.
+    let filtered: String;
+    let body: &str = if text.lines().any(|line| line.trim() == "usemtl") {
+        filtered = text.lines().filter(|line| line.trim() != "usemtl").flat_map(|line| [line, "\n"]).collect();
+        &filtered
+    } else {
+        &text
+    };
+
+    // Feed the prefix and the body as one reader: no whole-file copy is needed before tobj parses it.
+    let mut source = BufReader::new(prefix.as_bytes().chain(body.as_bytes()));
 
     // Polygons stay whole so the wireframe can show them; `RawMesh::polygon` triangulates
     let options = tobj::LoadOptions { single_index: true, triangulate: false, ignore_points: true, ignore_lines: true };
